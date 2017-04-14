@@ -69,7 +69,7 @@ namespace FtpClient
                 FtpStream.Close();
                 FtpResponse.Close();
                 FtpRequest = null;
-                /* Return the Directory Listing as a string Array by Parsing 'directoryRaw' with the Delimiter you Append (I use | in This Example) */
+                /* Return the Directory Listing as a string Array by Parsing 'directoryRaw' with the Delimiter | */
                 try
                 {
                     string[] directoryList = directoryRaw.Split("|".ToCharArray());
@@ -87,7 +87,7 @@ namespace FtpClient
                 Console.WriteLine(LastException);
             }
             /* Return an Empty string Array if an Exception Occurs */
-            return new string[] {  }; // ""
+            return new string[] { "" };
         }
 
         /* List Directory Contents in Detail (Name, Size, Created, etc.) */
@@ -136,7 +136,7 @@ namespace FtpClient
                 FtpStream.Close();
                 FtpResponse.Close();
                 FtpRequest = null;
-                /* Return the Directory Listing as a string Array by Parsing 'directoryRaw' with the Delimiter you Append (I use | in This Example) */
+                /* Return the Directory Listing as a string Array by Parsing 'directoryRaw' with the Delimiter | */
                 try
                 {
                     if (directoryRaw != null)
@@ -147,8 +147,8 @@ namespace FtpClient
                             return directoryList.Select(x => new RemoteFileInfo(x, directory)).ToArray();
                         else
                             return new RemoteFileInfo[] {  };
-                    } 
-                    else
+                    }
+                    else // Return empty array if it is an empty folder
                         return new RemoteFileInfo[] {  };
                 }
                 catch (Exception ex)
@@ -162,8 +162,8 @@ namespace FtpClient
                 LastException = ex.ToString();
                 Console.WriteLine(LastException);
             }
-            /* Return an Empty string Array if an Exception Occurs */
-            return new RemoteFileInfo[] {  }; // ""
+            /* Return null if an Exception Occurs */
+            return null;
         }
 
         /* Download File */

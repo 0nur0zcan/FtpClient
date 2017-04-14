@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:FtpClient"
         mc:Ignorable="d"
-        Title="FTP Client" Height="600" Width="800" Loaded="Window_Loaded">
+        Title="FTP Client" Height="600" Width="800" 
+        Loaded="Window_Loaded" Closing="Window_Closing">
     
     <Window.Resources>
         <local:IsDirImageConverter DirImage="Images/folder.png" FileImage="Images/file.png" x:Key="BoolImageConverter"/>
@@ -79,8 +80,6 @@
                                 </DataTemplate>
                             </Setter.Value>
                         </Setter>
-                        <Setter Property="IsSelected" Value="{Binding Path=IsSelected, Mode=TwoWay}" />
-                        <Setter Property="IsExpanded" Value="{Binding Path=IsExpanded, Mode=TwoWay}"/>
                     </Style>
                 </TreeView.Resources>
             </TreeView>
@@ -144,7 +143,7 @@
                     </StackPanel>
                 </Button>
                 <Button Width="120" Height="30" Margin="2,2,2,2" Padding="4" Click="BtnRenameLocalFile_Click"
-                        VerticalContentAlignment="Center" HorizontalContentAlignment="Left">
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Left" IsEnabled="False">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Image Source="/FtpClient;component/Images/textfield_rename.png" Width="16" 
                                VerticalAlignment="Center" HorizontalAlignment="Left" Style="{StaticResource ImageStyle}"/>
@@ -273,7 +272,7 @@
                     </StackPanel>
                 </Button>
                 <Button Width="120" Height="30" Margin="2,2,2,2" Padding="4" Click="BtnRenameRemoteFile_Click"
-                        VerticalContentAlignment="Center" HorizontalContentAlignment="Left">
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Left" IsEnabled="False">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Image Source="/FtpClient;component/Images/textfield_rename.png" Width="16" 
                                VerticalAlignment="Center" HorizontalAlignment="Left" Style="{StaticResource ImageStyle}"/>

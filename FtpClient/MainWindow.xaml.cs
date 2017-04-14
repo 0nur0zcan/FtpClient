@@ -25,35 +25,6 @@ namespace FtpClient
         public MainWindow()
         {
             InitializeComponent();
-
-            /* Download a File */
-            //ftpClient.download("BSO 2016-17-kitapcik.pdf", @"C:\Users\oozcan\Desktop\BSO 2016-17-kitapcik.pdf");
-
-            /* Upload a File */
-            //ftpClient.upload("ürünler.docx", @"F:\Onur\ürünler.docx");
-
-            /* Delete a File */
-            //ftpClient.delete("ürünler.docx");
-
-            /* Delete Dir*/
-            //ftpClient.deleteDir("Yeni klasör");
-
-            /* Rename a File */
-            //ftpClient.rename("ürünler.docx", "ürün listesi.docx");
-
-            /* Create a New Directory */
-            //ftpClient.createDirectory("etc/test");
-
-            /* Get the Date/Time a File was Created */
-            //string fileDateTime = ftpClient.getFileCreatedDateTime("etc/test.txt");
-            //Console.WriteLine(fileDateTime);
-
-            /* Get the Size of a File */
-            //string fileSize = ftpClient.getFileSize("etc/test.txt");
-            //Console.WriteLine(fileSize);
-
-            /* Release Resources */
-            //fcm = null;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -76,6 +47,11 @@ namespace FtpClient
 
             RemoteDataGrid.LoadingRowDetails += RemoteDataGrid_LoadingRowDetails;
             RemoteDataGrid.ItemsSource = new RemoteFileInfo[] {  };
+        }
+
+        private void Window_Closing(object sender, CancelEventArgs e)
+        {   /* Release Resources */
+            fcm = null;
         }
 
         private void LoadLocalFolders(string[] dirs)
@@ -144,6 +120,31 @@ namespace FtpClient
             }
         }
 
+        private void LocalRow_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            FileSystemInfo fsi = LocalDataGrid.SelectedItem as FileSystemInfo;
+
+            if (fsi.Attributes.HasFlag(FileAttributes.Directory))
+            {   // Refresh LocalFoldersTree
+                SelectLocalSubTreeItem(fsi.Name);
+            }
+        }
+
+        private void SelectLocalSubTreeItem(string subFolderName)
+        {
+            TreeViewItem selectedItem = LocalFoldersTree.SelectedItem as TreeViewItem;
+            selectedItem.IsExpanded = true;
+
+            foreach (TreeViewItem subitem in selectedItem.Items)
+            {
+                if (subitem.Header.Equals(subFolderName))
+                {
+                    subitem.IsSelected = true;
+                    break;
+                }
+            }
+        }
+
         private void LocalFolder_Selected(object sender, RoutedEventArgs e)
         {
             try
@@ -160,25 +161,28 @@ namespace FtpClient
             e.Handled = true;
         }
 
-        private void LocalRow_DoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            FileSystemInfo fsi = LocalDataGrid.SelectedItem as FileSystemInfo;
-
-            if (fsi.Attributes.HasFlag(FileAttributes.Directory))
-            {
-                DirectoryInfo selectedDirInfo = new DirectoryInfo(@fsi.FullName);
-                LocalDataGrid.ItemsSource = selectedDirInfo.GetFileSystemInfos();
-            }
-        }
-
         /*private void LocalDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             
         }*/
 
         private void BtnUploadLocalFile_Click(object sender, RoutedEventArgs e)
-        {
-            
+        {   /* Upload a File: upload("ürünler.docx", @"F:\Onur\ürünler.docx") */
+            FileSystemInfo fsi = LocalDataGrid.SelectedItem as FileSystemInfo;
+            TreeViewItem selectedItem = RemoteFoldersTree.SelectedItem as TreeViewItem;
+            string remotePath = ((selectedItem.Tag.ToString().Equals("/")) ? "/" : selectedItem.Tag.ToString() + "/");
+
+            fcm.upload(remotePath + fsi.Name, @fsi.FullName);
+
+            try
+            {   // Refresh RemoteDataGrid
+                RemoteDataGrid.ItemsSource = fcm.directoryListDetailed(selectedItem.Tag as string);
+            }
+            catch (Exception exc)
+            {
+                MessageBox.Show(exc.ToString(), "Hata", MessageBoxButton.OK,
+                    MessageBoxImage.Error, MessageBoxResult.OK);
+            }
         }
 
         private void BtnDeleteLocalFile_Click(object sender, RoutedEventArgs e)
@@ -210,7 +214,7 @@ namespace FtpClient
 
         private void BtnRenameLocalFile_Click(object sender, RoutedEventArgs e)
         {
-
+            //LocalDataGrid.BeginEdit();
         }
 
         private void BtnCreateLocalFolder_Click(object sender, RoutedEventArgs e)
@@ -246,22 +250,7 @@ namespace FtpClient
             fcm = new FtpClientManager(@TbxHost.Text, TbxUsername.Text, PbxPassword.Password);
 
             // Display remote directory tree
-            /* Get Contents of a Directory (Names Only) */
-            //string[] fileNameList = fcm.directoryListSimple("");
-            /* Get Contents of a Directory with Detailed File/Directory Info */
-            RemoteFileInfo[] fileInfoList = fcm.directoryListDetailed("");
-
-            if (fileInfoList.Length > 0)
-            {
-                LoadRemoteFolders(new string[] { "/" });
-
-                RemoteDataGrid.ItemsSource = fileInfoList;
-            }
-            else
-            {
-                MessageBox.Show(fcm.LastException, "Hata", MessageBoxButton.OK, 
-                    MessageBoxImage.Error, MessageBoxResult.OK);
-            }
+            LoadRemoteFolders(new string[] { "/" });
         }
 
         private void LoadRemoteFolders(string[] dirs)
@@ -275,17 +264,28 @@ namespace FtpClient
                 item.Expanded += RemoteFolder_Expanded;
                 item.Selected += RemoteFolder_Selected;
 
+                if (item.Header.Equals("/"))
+                {
+                    item.IsSelected = true;
+
+                    RemoteFolder_Expanded(item);
+                }
+
                 RemoteFoldersTree.Items.Add(item);
             }
         }
 
         private void RemoteFolder_Expanded(object sender, RoutedEventArgs e)
         {
-            TreeViewItem item = sender as TreeViewItem;
+            RemoteFolder_Expanded(sender as TreeViewItem);
+        }
+
+        private void RemoteFolder_Expanded(TreeViewItem item)
+        {
             if (item.Items.Count == 1 && item.Items[0] == null)
             {   // if it has a dummy node, first clear it
                 item.Items.Clear();
-                
+
                 LoadRemoteSubfolders(item);
             }
         }
@@ -316,12 +316,47 @@ namespace FtpClient
             }
         }
 
+        private void RemoteRow_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            RemoteFileInfo rfi = RemoteDataGrid.SelectedItem as RemoteFileInfo;
+
+            if (rfi.IsDirectory())
+            {   // Refresh RemoteFoldersTree
+                SelectRemoteSubTreeItem(rfi.Name);
+            }
+        }
+
+        private void SelectRemoteSubTreeItem(string subFolderName)
+        {
+            TreeViewItem selectedItem = RemoteFoldersTree.SelectedItem as TreeViewItem;
+            selectedItem.IsExpanded = true;
+
+            foreach (TreeViewItem subitem in selectedItem.Items)
+            {
+                if (subitem.Header.Equals(subFolderName))
+                {
+                    subitem.IsSelected = true;
+                    break;
+                }
+            }
+        }
+
         private void RemoteFolder_Selected(object sender, RoutedEventArgs e)
         {
             try
-            {
+            {   /* Get Contents of a Directory with Detailed File/Directory Info */
                 TreeViewItem selectedItem = sender as TreeViewItem;
-                RemoteDataGrid.ItemsSource = fcm.directoryListDetailed(selectedItem.Tag as string);
+                RemoteFileInfo[] fileInfoList = fcm.directoryListDetailed(selectedItem.Tag as string);
+
+                if (fileInfoList != null)
+                {
+                    RemoteDataGrid.ItemsSource = fileInfoList;
+                }
+                else
+                {
+                    MessageBox.Show(fcm.LastException, "Hata", MessageBoxButton.OK,
+                        MessageBoxImage.Error, MessageBoxResult.OK);
+                }
             }
             catch (Exception exc)
             {
@@ -329,16 +364,6 @@ namespace FtpClient
                     MessageBoxImage.Error, MessageBoxResult.OK);
             }
             e.Handled = true;
-        }
-
-        private void RemoteRow_DoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            RemoteFileInfo rfi = RemoteDataGrid.SelectedItem as RemoteFileInfo;
-
-            if (rfi.IsDirectory())
-            {
-                RemoteDataGrid.ItemsSource = fcm.directoryListDetailed(rfi.FullName);
-            }
         }
 
         private void RemoteDataGrid_ItemsSource_Changed(object sender, EventArgs e)
@@ -371,23 +396,86 @@ namespace FtpClient
         }
 
         private void BtnDownloadRemoteFile_Click(object sender, RoutedEventArgs e)
-        {
-
+        {   /* Download a File */
+            //fcm.download("BSO 2016-17-kitapcik.pdf", @"C:\Users\oozcan\Desktop\BSO 2016-17-kitapcik.pdf");
         }
 
         private void BtnDeleteRemoteFile_Click(object sender, RoutedEventArgs e)
         {
+            try
+            {
+                RemoteFileInfo rfi = RemoteDataGrid.SelectedItem as RemoteFileInfo;
+                if(rfi.IsDirectory()) /* Delete a Dir*/
+                    fcm.deleteDir(rfi.FullName);
+                else /* Delete a File */
+                    fcm.delete(rfi.FullName);
 
+                // Refresh RemoteDataGrid
+                TreeViewItem selectedItem = RemoteFoldersTree.SelectedItem as TreeViewItem;
+                RemoteDataGrid.ItemsSource = fcm.directoryListDetailed(selectedItem.Tag as string);
+            }
+            catch (Exception exc)
+            {
+                MessageBox.Show(exc.ToString(), "Hata", MessageBoxButton.OK,
+                    MessageBoxImage.Error, MessageBoxResult.OK);
+            }
         }
 
         private void BtnRenameRemoteFile_Click(object sender, RoutedEventArgs e)
-        {
-
+        {   /* Rename a File */
+            //fcm.rename("ürünler.docx", "ürün listesi.docx");
         }
 
         private void BtnCreateRemoteFolder_Click(object sender, RoutedEventArgs e)
-        {
+        {   /* Create a New Directory */
+            TreeViewItem selectedItem = RemoteFoldersTree.SelectedItem as TreeViewItem;
+            string parentPath = selectedItem.Tag.Equals("/") ? "" : selectedItem.Tag.ToString();
+            string parentName = selectedItem.Header.Equals("/") ? "" : selectedItem.Header.ToString() + "/";
+            string newFolderName = "New Folder";
+            string newFolderPath;
 
+            int i = 1;
+            string tempName = newFolderName;
+            while (IsRemoteDirectoryExists(parentPath, parentName + tempName))
+            {
+                tempName = newFolderName + " (" + i + ")";
+                i++;
+            }
+            newFolderPath = parentPath + "/" + tempName;
+
+            try
+            {
+                fcm.createDirectory(newFolderPath);
+
+                // Refresh RemoteDataGrid
+                RemoteDataGrid.ItemsSource = fcm.directoryListDetailed(selectedItem.Tag as string);
+            }
+            catch (Exception exc)
+            {
+                MessageBox.Show(exc.ToString(), "Hata", MessageBoxButton.OK,
+                    MessageBoxImage.Error, MessageBoxResult.OK);
+            }
+        }
+
+        private bool IsRemoteDirectoryExists(string parentFolderPath, string folderShortPath)
+        {
+            /* Get Contents of a Directory (Names Only) */
+            string[] fileNameList = fcm.directoryListSimple(parentFolderPath);
+            if (fileNameList.Contains(folderShortPath))
+                return true;
+            else
+                return false;
+        }
+
+        private void BtnShowRemoteFileProperties_Click(object sender, RoutedEventArgs e)
+        {
+            /* Get the Date/Time a File was Created */
+            //string fileDateTime = fcm.getFileCreatedDateTime("etc/test.txt");
+            //Console.WriteLine(fileDateTime);
+
+            /* Get the Size of a File */
+            //string fileSize = fcm.getFileSize("etc/test.txt");
+            //Console.WriteLine(fileSize);
         }
     }
 }
